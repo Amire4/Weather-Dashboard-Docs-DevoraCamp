@@ -1,0 +1,6 @@
+{
+  "name": "Weather Dashboard Docs — DevoraCamp",
+  "description": "Comprehensive technical documentation for building a Weather Dashboard with OpenWeatherMap API using Next.js, TypeScript, and Tailwind CSS.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
