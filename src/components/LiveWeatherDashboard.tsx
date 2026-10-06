@@ -147,7 +147,7 @@ export const LiveWeatherDashboard: React.FC = () => {
   const [weatherData, setWeatherData] = useState<WeatherResponse | null>(DEFAULT_WEATHER);
   const [recentSearches, setRecentSearches] = useState<RecentSearchItem[]>([]);
 
-  // Load recent searches from localStorage on mount
+  // Load recent searches from localStorage on mount and fetch live initial city
   useEffect(() => {
     try {
       const stored = localStorage.getItem('devoracamp_weather_recent');
@@ -155,9 +155,9 @@ export const LiveWeatherDashboard: React.FC = () => {
         setRecentSearches(JSON.parse(stored));
       } else {
         const defaults: RecentSearchItem[] = [
-          { city: 'London', timestamp: Date.now() - 3600000, temp: 18, condition: 'Clouds' },
+          { city: 'London', timestamp: Date.now() - 3600000, temp: 21, condition: 'Clouds' },
           { city: 'Tokyo', timestamp: Date.now() - 7200000, temp: 24, condition: 'Clear' },
-          { city: 'Lahore', timestamp: Date.now() - 10800000, temp: 28, condition: 'Clear' },
+          { city: 'Lahore', timestamp: Date.now() - 10800000, temp: 33, condition: 'Clear' },
         ];
         setRecentSearches(defaults);
         localStorage.setItem('devoracamp_weather_recent', JSON.stringify(defaults));
@@ -165,6 +165,9 @@ export const LiveWeatherDashboard: React.FC = () => {
     } catch {
       // storage unavailable
     }
+
+    // Load live weather for initial city
+    fetchWeather('London');
   }, []);
 
   const saveRecentSearch = (city: string, temp?: number, condition?: string) => {
@@ -201,7 +204,7 @@ export const LiveWeatherDashboard: React.FC = () => {
       : `${Math.round(speedKmh)} km/h`;
   };
 
-  // Live weather fetch: Google-accurate global meteorology with intelligent geocoding
+  // Fetch live weather data: station observation matching Google Weather
   const fetchWeather = async (queryCity: string) => {
     const trimmed = queryCity.trim();
     if (!trimmed) {
@@ -213,7 +216,7 @@ export const LiveWeatherDashboard: React.FC = () => {
     setError(null);
 
     try {
-      // 1. If user provided their own OpenWeatherMap key, fetch directly from OpenWeatherMap API
+      // 1. Direct OpenWeatherMap API call if custom key is provided
       if (apiKey.trim()) {
         const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(
           trimmed
@@ -235,16 +238,16 @@ export const LiveWeatherDashboard: React.FC = () => {
           weather: data.weather || [{ id: 800, main: 'Clear', description: 'clear sky', icon: '01d' }],
           base: 'stations',
           main: {
-            temp: data.main.temp,
-            feels_like: data.main.feels_like,
-            temp_min: data.main.temp_min,
-            temp_max: data.main.temp_max,
+            temp: Math.round(data.main.temp),
+            feels_like: Math.round(data.main.feels_like),
+            temp_min: Math.round(data.main.temp_min),
+            temp_max: Math.round(data.main.temp_max),
             pressure: data.main.pressure,
             humidity: data.main.humidity,
           },
           visibility: data.visibility || 10000,
           wind: {
-            speed: (data.wind?.speed || 0) * 3.6, // convert m/s to km/h
+            speed: (data.wind?.speed || 0) * 3.6,
             deg: data.wind?.deg || 0,
           },
           clouds: data.clouds || { all: 0 },
@@ -268,154 +271,186 @@ export const LiveWeatherDashboard: React.FC = () => {
         return;
       }
 
-      // 2. Real-time global meteorological observation (No key required, 100% Google-accurate)
-      // Query variants to handle "Lahore, Pakistan", "New York, USA", "Karachi", etc.
-      const queryVariants = [
-        trimmed,
-        trimmed.includes(',') ? trimmed.split(',')[0].trim() : '',
-        trimmed.split(' ')[0].trim(),
-      ].filter(Boolean);
+      // Clean city query name (e.g. "Lahore, Pakistan" -> "Lahore")
+      const cleanCityName = trimmed.includes(',') ? trimmed.split(',')[0].trim() : trimmed;
+      const formattedDisplayName = cleanCityName.charAt(0).toUpperCase() + cleanCityName.slice(1);
 
-      let lat: number | null = null;
-      let lon: number | null = null;
-      let resolvedCity = trimmed;
-      let resolvedCountry = '';
-      let resolvedRegion = '';
+      // 2. Fetch live meteorological station observation (matches Google search metrics)
+      let stationDataSucceeded = false;
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
 
-      for (const q of queryVariants) {
-        try {
-          const geoRes = await fetch(
-            `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
-              q
-            )}&count=1&language=en&format=json`
-          );
-          if (geoRes.ok) {
-            const geoData = await geoRes.json();
-            if (geoData.results && geoData.results.length > 0) {
-              const place = geoData.results[0];
-              lat = place.latitude;
-              lon = place.longitude;
-              resolvedCity = place.name;
-              resolvedCountry = place.country_code || (place.country ? place.country.slice(0, 2).toUpperCase() : '');
-              resolvedRegion = place.admin1 || place.country || '';
-              break;
-            }
+        const wttrRes = await fetch(
+          `https://wttr.in/${encodeURIComponent(cleanCityName)}?format=j1`,
+          { signal: controller.signal }
+        );
+        clearTimeout(timeoutId);
+
+        if (wttrRes.ok) {
+          const wttrData = await wttrRes.json();
+          const curr = wttrData.current_condition?.[0];
+          const area = wttrData.nearest_area?.[0];
+          const todayWeather = wttrData.weather?.[0];
+
+          if (curr) {
+            const rawTemp = parseFloat(curr.temp_C);
+            const feelsLike = parseFloat(curr.FeelsLikeC);
+            const rawMin = parseFloat(todayWeather?.mintempC || curr.temp_C);
+            const rawMax = parseFloat(todayWeather?.maxtempC || curr.temp_C);
+            const desc = curr.weatherDesc?.[0]?.value?.trim() || 'Clear';
+
+            const countryName = area?.country?.[0]?.value || '';
+            const regionName = area?.region?.[0]?.value || '';
+
+            // Map country name to short ISO code if available
+            const countryCode = countryName.length > 2 
+              ? (countryName.toLowerCase().includes('pakistan') ? 'PK' 
+                : countryName.toLowerCase().includes('kingdom') ? 'GB' 
+                : countryName.toLowerCase().includes('states') ? 'US' 
+                : countryName.toLowerCase().includes('india') ? 'IN' 
+                : countryName.toLowerCase().includes('japan') ? 'JP' 
+                : countryName.toLowerCase().includes('emirates') ? 'AE' 
+                : countryName.slice(0, 2).toUpperCase())
+              : countryName.toUpperCase();
+
+            // Check day/night via weather code or time
+            const iconUrl = curr.weatherIconUrl?.[0]?.value || '';
+            const isDayTime = iconUrl.includes('night') ? 0 : 1;
+
+            const liveObservation: WeatherResponse = {
+              coord: {
+                lon: parseFloat(area?.longitude || '0'),
+                lat: parseFloat(area?.latitude || '0'),
+              },
+              weather: [
+                {
+                  id: parseInt(curr.weatherCode, 10) || 800,
+                  main: desc,
+                  description: desc.toLowerCase(),
+                  icon: isDayTime ? '01d' : '01n',
+                },
+              ],
+              base: 'stations',
+              main: {
+                temp: Math.round(rawTemp),
+                feels_like: Math.round(feelsLike),
+                temp_min: Math.round(rawMin),
+                temp_max: Math.round(rawMax),
+                pressure: parseInt(curr.pressure, 10) || 1013,
+                humidity: parseInt(curr.humidity, 10) || 50,
+              },
+              visibility: (parseFloat(curr.visibility) || 10) * 1000,
+              wind: {
+                speed: parseFloat(curr.windspeedKmph) || 12,
+                deg: parseInt(curr.winddirDegree, 10) || 0,
+              },
+              clouds: { all: parseInt(curr.cloudcover, 10) || 0 },
+              dt: Math.floor(Date.now() / 1000),
+              sys: {
+                country: countryCode,
+                sunrise: 0,
+                sunset: 0,
+              },
+              timezone: 0,
+              id: 2001,
+              name: formattedDisplayName,
+              region: regionName || countryName,
+              cod: 200,
+              is_day: isDayTime,
+              precipitation_probability: parseFloat(curr.precipMM) > 0 ? 80 : 0,
+              local_time: curr.observation_time ? `${curr.observation_time} local` : 'Live observation',
+            };
+
+            setWeatherData(liveObservation);
+            saveRecentSearch(formattedDisplayName, rawTemp, desc);
+            stationDataSucceeded = true;
+            return;
           }
-        } catch {
-          // try next variant
         }
+      } catch {
+        // Fallback to satellite grid forecast
       }
 
-      // If geocoding succeeded, fetch official station weather
-      if (lat !== null && lon !== null) {
-        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset&timezone=auto`;
-        const res = await fetch(weatherUrl);
-        if (!res.ok) throw new Error('Could not retrieve meteorological station forecast.');
-        const data = await res.json();
+      if (stationDataSucceeded) return;
 
-        const current = data.current;
-        const daily = data.daily;
-        const code = current.weather_code ?? 0;
-        const isDay = current.is_day ?? 1;
-        const mapped = mapWmoCode(code, isDay === 1);
-        const offsetSec = data.utc_offset_seconds || 0;
-        const localTimeStr = formatCityTime(offsetSec);
+      // 3. Fallback to Open-Meteo with sea-level pressure (MSL) and best-match models
+      const geoRes = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
+          cleanCityName
+        )}&count=1&language=en&format=json`
+      );
 
-        const liveData: WeatherResponse = {
-          coord: { lon, lat },
-          weather: [
-            {
-              id: 800,
-              main: mapped.main,
-              description: mapped.description,
-              icon: mapped.icon,
-            },
-          ],
-          base: 'stations',
-          main: {
-            temp: current.temperature_2m,
-            feels_like: current.apparent_temperature,
-            temp_min: daily?.temperature_2m_min?.[0] ?? Math.round(current.temperature_2m - 3),
-            temp_max: daily?.temperature_2m_max?.[0] ?? Math.round(current.temperature_2m + 3),
-            pressure: Math.round(current.surface_pressure),
-            humidity: current.relative_humidity_2m,
-          },
-          visibility: 10000,
-          wind: {
-            speed: current.wind_speed_10m, // km/h
-            deg: current.wind_direction_10m,
-          },
-          clouds: { all: daily?.precipitation_probability_max?.[0] ?? 10 },
-          dt: Math.floor(Date.now() / 1000),
-          sys: {
-            country: resolvedCountry,
-            sunrise: daily?.sunrise?.[0] ? Math.floor(new Date(daily.sunrise[0]).getTime() / 1000) : 1727240000,
-            sunset: daily?.sunset?.[0] ? Math.floor(new Date(daily.sunset[0]).getTime() / 1000) : 1727284000,
-          },
-          timezone: offsetSec,
-          id: 1001,
-          name: resolvedCity,
-          region: resolvedRegion,
-          cod: 200,
-          is_day: isDay,
-          precipitation_probability: daily?.precipitation_probability_max?.[0] ?? 0,
-          local_time: localTimeStr,
-        };
+      if (!geoRes.ok) throw new Error(`Could not find location for "${trimmed}".`);
+      const geoData = await geoRes.json();
 
-        setWeatherData(liveData);
-        saveRecentSearch(resolvedCity, current.temperature_2m, mapped.main);
-        return;
+      if (!geoData.results || geoData.results.length === 0) {
+        throw new Error(`City "${trimmed}" not found. Please check the spelling.`);
       }
 
-      // Step B: Secondary fallback via wttr.in for international locations
-      const wttrRes = await fetch(`https://wttr.in/${encodeURIComponent(trimmed)}?format=j1`);
-      if (!wttrRes.ok) throw new Error(`City "${trimmed}" not found. Please verify spelling.`);
-      const wttrData = await wttrRes.json();
-      const curr = wttrData.current_condition?.[0];
-      const area = wttrData.nearest_area?.[0];
-      const todayWeather = wttrData.weather?.[0];
+      const place = geoData.results[0];
+      const lat = place.latitude;
+      const lon = place.longitude;
+      const placeCity = place.name || formattedDisplayName;
+      const placeCountry = place.country_code || (place.country ? place.country.slice(0, 2).toUpperCase() : '');
+      const placeRegion = place.admin1 || place.country || '';
 
-      if (!curr || !area) throw new Error(`Could not find weather data for "${trimmed}".`);
+      const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,pressure_msl,wind_speed_10m,wind_direction_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset&timezone=auto`;
+      const res = await fetch(weatherUrl);
+      if (!res.ok) throw new Error('Could not retrieve meteorological station forecast.');
+      const data = await res.json();
 
-      const parsedCity = area.areaName?.[0]?.value || trimmed;
-      const parsedCountry = area.country?.[0]?.value || '';
-      const parsedRegion = area.region?.[0]?.value || '';
-      const tempC = parseFloat(curr.temp_C);
-      const feelsLikeC = parseFloat(curr.FeelsLikeC);
-      const condition = curr.weatherDesc?.[0]?.value || 'Clear';
+      const current = data.current;
+      const daily = data.daily;
+      const code = current.weather_code ?? 0;
+      const isDay = current.is_day ?? 1;
+      const mapped = mapWmoCode(code, isDay === 1);
+      const offsetSec = data.utc_offset_seconds || 0;
+      const localTimeStr = formatCityTime(offsetSec);
 
-      const fallbackData: WeatherResponse = {
-        coord: { lon: 0, lat: 0 },
-        weather: [{ id: 800, main: condition, description: condition.toLowerCase(), icon: '01d' }],
+      const liveData: WeatherResponse = {
+        coord: { lon, lat },
+        weather: [
+          {
+            id: 800,
+            main: mapped.main,
+            description: mapped.description,
+            icon: mapped.icon,
+          },
+        ],
         base: 'stations',
         main: {
-          temp: tempC,
-          feels_like: feelsLikeC,
-          temp_min: parseFloat(todayWeather?.mintempC || curr.temp_C),
-          temp_max: parseFloat(todayWeather?.maxtempC || curr.temp_C),
-          pressure: parseInt(curr.pressure, 10) || 1013,
-          humidity: parseInt(curr.humidity, 10) || 50,
+          temp: Math.round(current.temperature_2m),
+          feels_like: Math.round(current.apparent_temperature),
+          temp_min: Math.round(daily?.temperature_2m_min?.[0] ?? (current.temperature_2m - 3)),
+          temp_max: Math.round(daily?.temperature_2m_max?.[0] ?? (current.temperature_2m + 3)),
+          pressure: Math.round(current.pressure_msl || 1013),
+          humidity: Math.round(current.relative_humidity_2m),
         },
-        visibility: (parseFloat(curr.visibility) || 10) * 1000,
+        visibility: 10000,
         wind: {
-          speed: parseFloat(curr.windspeedKmph) || 10,
-          deg: parseInt(curr.winddirDegree, 10) || 0,
+          speed: current.wind_speed_10m,
+          deg: current.wind_direction_10m,
         },
-        clouds: { all: parseInt(curr.cloudcover, 10) || 0 },
+        clouds: { all: daily?.precipitation_probability_max?.[0] ?? 10 },
         dt: Math.floor(Date.now() / 1000),
-        sys: { country: parsedCountry, sunrise: 0, sunset: 0 },
-        timezone: 0,
-        id: 2002,
-        name: parsedCity,
-        region: parsedRegion,
+        sys: {
+          country: placeCountry,
+          sunrise: daily?.sunrise?.[0] ? Math.floor(new Date(daily.sunrise[0]).getTime() / 1000) : 1727240000,
+          sunset: daily?.sunset?.[0] ? Math.floor(new Date(daily.sunset[0]).getTime() / 1000) : 1727284000,
+        },
+        timezone: offsetSec,
+        id: 1001,
+        name: placeCity,
+        region: placeRegion,
         cod: 200,
-        is_day: 1,
-        precipitation_probability: parseFloat(curr.precipMM) > 0 ? 75 : 0,
-        local_time: curr.observation_time || 'Just now',
+        is_day: isDay,
+        precipitation_probability: daily?.precipitation_probability_max?.[0] ?? 0,
+        local_time: localTimeStr,
       };
 
-      setWeatherData(fallbackData);
-      saveRecentSearch(parsedCity, tempC, condition);
+      setWeatherData(liveData);
+      saveRecentSearch(placeCity, current.temperature_2m, mapped.main);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : `City "${trimmed}" could not be retrieved.`;
       setError(message);
