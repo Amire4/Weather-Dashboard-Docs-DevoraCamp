@@ -1,5 +1,6 @@
 import React from 'react';
-import { Search, CloudSun, Menu, X } from 'lucide-react';
+import { Search, CloudSun, Menu, X, FileDown, ExternalLink } from 'lucide-react';
+import { downloadAuditPdf, openAuditPdfInNewTab } from '../utils/downloadPdf';
 
 interface HeaderProps {
   onOpenSearch: () => void;
@@ -7,6 +8,7 @@ interface HeaderProps {
   isSidebarOpen: boolean;
   activeSection: string;
   onSelectSection: (sectionId: string) => void;
+  onOpenAuditModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -15,6 +17,7 @@ export const Header: React.FC<HeaderProps> = ({
   isSidebarOpen,
   activeSection,
   onSelectSection,
+  onOpenAuditModal,
 }) => {
   return (
     <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-slate-950/85 border-b border-slate-800/80 transition-all">
@@ -110,6 +113,23 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono text-slate-500 bg-slate-950 border border-slate-800">
               ⌘K
             </span>
+          </button>
+
+          {/* Download PDF Trigger Button */}
+          <button
+            type="button"
+            onClick={() => {
+              if (onOpenAuditModal) {
+                onOpenAuditModal();
+              } else {
+                downloadAuditPdf();
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 text-emerald-400 transition-all text-xs font-semibold whitespace-nowrap cursor-pointer shadow-sm group"
+            title="Download or open the 10-page verified PDF handbook"
+          >
+            <FileDown className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
+            <span>Download PDF</span>
           </button>
 
           {/* Live Demo Direct Link Button */}

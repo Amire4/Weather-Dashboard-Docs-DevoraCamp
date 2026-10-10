@@ -92,3 +92,20 @@
 .token.variable {
   color: #fbbf24;
 }
+
+/* Print optimizations for Save as PDF */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+  header, nav, aside {
+    display: none !important;
+  }
+  main, article {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}

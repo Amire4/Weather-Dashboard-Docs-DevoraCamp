@@ -92,6 +92,7 @@ export const DOC_SECTIONS: DocSection[] = [
     category: 'Troubleshooting',
     summary: 'Comprehensive solutions for dependency errors, 404 City Not Found, 401 Invalid Key, 429 Rate Limits, environment variable issues, and hydration bugs.',
     subsections: [
+      { id: 'err-quick-guide', title: 'How to Solve Any Error (3-Step Quick Guide)' },
       { id: 'err-install', title: 'npm install & Dependency Errors' },
       { id: 'err-404', title: '404 City Not Found' },
       { id: 'err-401', title: '401 Invalid API Key & Activation Delay' },
@@ -239,6 +240,13 @@ export const SEARCH_INDEX: SearchResultItem[] = [
     sectionId: 'code-reference',
     category: 'Code Reference',
     snippet: 'Complete copy-pasteable code for all 13 project files including components, helpers, and page routes.',
+  },
+  {
+    id: 'search-troubleshoot-quick',
+    title: 'How to Solve Any Error (3-Step Quick Guide)',
+    sectionId: 'troubleshooting',
+    category: 'Troubleshooting',
+    snippet: 'Step-by-step diagnostic workflow to quickly identify, debug, and resolve any runtime, API, or build error.',
   },
   {
     id: 'search-troubleshoot-install',

@@ -9,12 +9,14 @@ import { Sidebar } from './components/Sidebar';
 import { DocsContent } from './components/DocsContent';
 import { TableOfContents } from './components/TableOfContents';
 import { SearchModal } from './components/SearchModal';
+import { PdfOptionsModal } from './components/PdfOptionsModal';
 import { DOC_SECTIONS } from './data/docsContent';
 
 export default function App() {
   const [activeSection, setActiveSection] = useState<string>('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState<boolean>(false);
 
   // Sync hash with active section on load and hashchange
   useEffect(() => {
@@ -72,6 +74,7 @@ export default function App() {
         isSidebarOpen={isSidebarOpen}
         activeSection={activeSection}
         onSelectSection={handleSelectSection}
+        onOpenAuditModal={() => setIsAuditModalOpen(true)}
       />
 
       {/* Main Container Layout */}
@@ -82,6 +85,7 @@ export default function App() {
           onSelectSection={handleSelectSection}
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
+          onOpenAuditModal={() => setIsAuditModalOpen(true)}
         />
 
         {/* Central Content Area */}
@@ -89,6 +93,7 @@ export default function App() {
           <DocsContent
             activeSection={activeSection}
             onSelectSection={handleSelectSection}
+            onOpenAuditModal={() => setIsAuditModalOpen(true)}
           />
 
           {/* On-Page Table of Contents */}
@@ -101,6 +106,12 @@ export default function App() {
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
         onSelect={handleSelectSection}
+      />
+
+      {/* PDF Action Selection Modal (Download or Open Online) */}
+      <PdfOptionsModal
+        isOpen={isAuditModalOpen}
+        onClose={() => setIsAuditModalOpen(false)}
       />
     </div>
   );

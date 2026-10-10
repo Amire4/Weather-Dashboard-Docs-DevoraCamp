@@ -499,10 +499,10 @@ export const LiveWeatherDashboard: React.FC = () => {
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex items-center p-1 bg-slate-900 rounded-lg border border-slate-800">
+        <div className="flex items-center p-1 bg-slate-900 rounded-lg border border-slate-800 overflow-x-auto max-w-full">
           <button
             onClick={() => setActiveTab('demo')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
               activeTab === 'demo'
                 ? 'bg-emerald-500 text-slate-950 font-semibold shadow-sm'
                 : 'text-slate-400 hover:text-slate-200'
@@ -513,7 +513,7 @@ export const LiveWeatherDashboard: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('code')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
               activeTab === 'code'
                 ? 'bg-emerald-500 text-slate-950 font-semibold shadow-sm'
                 : 'text-slate-400 hover:text-slate-200'
@@ -524,7 +524,7 @@ export const LiveWeatherDashboard: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('json')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
               activeTab === 'json'
                 ? 'bg-emerald-500 text-slate-950 font-semibold shadow-sm'
                 : 'text-slate-400 hover:text-slate-200'

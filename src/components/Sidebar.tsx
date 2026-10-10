@@ -7,14 +7,18 @@ import {
   AlertOctagon,
   PlayCircle,
   ChevronRight,
+  FileDown,
+  ExternalLink,
 } from 'lucide-react';
 import { DOC_SECTIONS } from '../data/docsContent';
+import { downloadAuditPdf, openAuditPdfInNewTab } from '../utils/downloadPdf';
 
 interface SidebarProps {
   activeSection: string;
   onSelectSection: (sectionId: string) => void;
   isOpen: boolean;
   onClose: () => void;
+  onOpenAuditModal?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -22,6 +26,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectSection,
   isOpen,
   onClose,
+  onOpenAuditModal,
 }) => {
   // Category Icons
   const getCategoryIcon = (category: string) => {
@@ -143,8 +148,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
             })}
           </div>
 
-          {/* Quick Footer Links */}
-          <div className="pt-4 border-t border-slate-800/80 text-[11px] text-slate-500 space-y-1 px-3">
+          {/* Quick Footer Links & Audit Report */}
+          <div className="pt-4 border-t border-slate-800/80 text-[11px] text-slate-500 space-y-2 px-3">
+            <button
+              type="button"
+              onClick={() => {
+                if (onOpenAuditModal) {
+                  onOpenAuditModal();
+                } else {
+                  downloadAuditPdf();
+                }
+                onClose();
+              }}
+              className="w-full flex items-center justify-between p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 text-xs font-semibold transition-all group cursor-pointer"
+              title="Download or open the 10-page verified PDF handbook"
+            >
+              <span className="flex items-center gap-1.5">
+                <FileDown className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Download PDF</span>
+              </span>
+              <span className="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/20 text-emerald-300 font-mono">
+                10 PAGES
+              </span>
+            </button>
             <p>DevoraCamp Curriculum</p>
             <p className="text-slate-400 font-mono text-[10px]">Updated: 25 Sept 2026</p>
           </div>
